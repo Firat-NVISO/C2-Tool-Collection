@@ -5,9 +5,9 @@
 #register help
 beacon_command_register("Kerberoast", "Perform Kerberoasting against all (or specified) SPN enabled accounts.",
 	"List all SPN enabled user/service accounts or request service tickets (TGS-REP) which can be cracked offline using HashCat.\n\n" .
-	"Synopsis: Kerberoast [list, list-no-aes, roast or roast-no-aes] [account <optional sAMAccountName filter (default all)>] [DC hostname/IP <optional>] [DN <optional>]\n" .
+	"Synopsis: Kerberoast [list, list-no-aes, roast or roast-no-aes] [account <optional sAMAccountName filter (default all)>] [DC hostname/IP <optional, roast only>] [DN <optional, roast only>]\n" .
 	"Example 1: Kerberoast roast svc_sql \n" .
-	"Example 2: Kerberoast roast svc_sql dc1.domain.local CN=domain,CN=local 	#listing cross-domain is not implemented\n\n" .
+	"Example 2: Kerberoast roast svc_sql dc1.domain.local CN=domain,CN=local 	\n\n" .
 	"WARNING: Listing and roasting tickets without sAMAccountName filter is OPSEC UNSAFE!\n\n");
 
 alias Kerberoast {
