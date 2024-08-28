@@ -8,7 +8,7 @@ beacon_command_register("Kerberoast", "Perform Kerberoasting against all (or spe
 	"Synopsis: Kerberoast [list, list-no-aes, roast or roast-no-aes] [account <optional sAMAccountName filter (default all)>] [DC hostname/IP <optional, roast only>] [DN <optional, roast only>]\n" .
 	"Example 1: Kerberoast roast svc_sql \n" .
 	"Example 2: Kerberoast roast svc_sql dc1.domain.local CN=domain,CN=local 	\n\n" .
-	"WARNING: Listing and roasting tickets without sAMAccountName filter is OPSEC UNSAFE!\n\n");
+	"WARNING: Listing users without sAMAccountName filter is OPSEC UNSAFE!\n\n");
 
 alias Kerberoast {
 	$bid = $1;

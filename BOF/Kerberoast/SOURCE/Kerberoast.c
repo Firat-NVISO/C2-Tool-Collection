@@ -540,10 +540,8 @@ HRESULT SearchDirectory(_In_ BOOL bListSPNs, _In_ BOOL bExcludeAES, _In_ LPCWSTR
 	// Construct the LDAP path
     if (lpwDC != NULL && lpwDN != NULL) { // Use DC and DN if provided
         	MSVCRT$swprintf_s(wcPathName, BUF_SIZE, L"LDAP://%ls/%ls", lpwDC, lpwDN);
-			BeaconPrintf(CALLBACK_OUTPUT, "wcPathName 1: %ls\n", wcPathName);
-	} else if (lpwDC != NULL && lpwDN == NULL) {
+	} else if (lpwDC != NULL && lpwDN == NULL) { // Use only DC if DN is not provided
 			MSVCRT$swprintf_s(wcPathName, BUF_SIZE, L"LDAP://%ls", lpwDC);
-			BeaconPrintf(CALLBACK_OUTPUT, "wcPathName no DN: %ls\n", wcPathName);
     } else {
 		// Get rootDSE and the current user's domain container DN.
         hr = ADsOpenObject(L"LDAP://rootDSE",
@@ -566,7 +564,6 @@ HRESULT SearchDirectory(_In_ BOOL bListSPNs, _In_ BOOL bExcludeAES, _In_ LPCWSTR
 
 		MSVCRT$wcscpy_s(wcPathName, _countof(wcPathName), L"LDAP://");
 		MSVCRT$wcscat_s(wcPathName, _countof(wcPathName), var.bstrVal);
-		BeaconPrintf(CALLBACK_OUTPUT, "wcPathName no extras: %ls\n", wcPathName);
 	}
 
 	hr = ADsOpenObject((LPCWSTR)wcPathName,
